@@ -333,7 +333,7 @@ python3 main.py
 | `LOG_FILE` | `string` | `"cfn.log"` | 运行日志文件名（仅在启用日志时生效） |
 
 <details>
-<summary>🔧 高级参数（可用性 / 带宽 / 并发 / 重试）</summary>
+<summary>🔧 高级参数（可用性 / 带宽 / 并发 / 重试 / 广告）</summary>
 
 **可用性检测参数**
 
