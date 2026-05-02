@@ -29,10 +29,22 @@
     "_comment_PROGRESS_PRINT_INTERVAL": "进度打印刷新间隔（秒），避免频繁 I/O",
 
     "FILTER_COUNTRIES_ENABLED": false,
-    "_comment_FILTER_COUNTRIES_ENABLED": "是否启用国家过滤（仅保留指定国家的节点）",
+    "_comment_FILTER_COUNTRIES_ENABLED": "前置白名单开关（true=仅保留下方 ALLOWED_COUNTRIES 中的国家，其余在 TCP 测试前剔除）",
 
     "ALLOWED_COUNTRIES": ["US"],
-    "_comment_ALLOWED_COUNTRIES": "允许的国家代码列表（如 US, JP），仅在 FILTER_COUNTRIES_ENABLED=true 时生效",
+    "_comment_ALLOWED_COUNTRIES": "前置白名单列表（仅在 FILTER_COUNTRIES_ENABLED=true 时生效）",
+
+    "PRE_FILTER_BLOCKED_ENABLED": true,
+    "_comment_PRE_FILTER_BLOCKED_ENABLED": "前置黑名单开关（true=在TCP测试前剔除下方国家）",
+
+    "PRE_FILTER_BLOCKED_COUNTRIES": ["CN"],
+    "_comment_PRE_FILTER_BLOCKED_COUNTRIES": "前置屏蔽的国家代码列表，不受白名单影响",
+
+    "PRE_FILTER_PORT_ENABLED": true,
+    "_comment_PRE_FILTER_PORT_ENABLED": "是否在 TCP 测试前过滤端口（仅保留下方指定的端口）",
+
+    "PRE_FILTER_PORTS": [443],
+    "_comment_PRE_FILTER_PORTS": "TCP 测试前允许的端口列表（可多端口）",
 
     "ENABLE_WXPUSHER": true,
     "_comment_ENABLE_WXPUSHER": "是否启用 WxPusher 微信通知",
@@ -119,17 +131,17 @@
     "_comment_FILTER_IPV6_AVAILABILITY": "【仅DNS】是否过滤落地为 IPv6 的节点",
 
     "FILTER_BLOCKED_COUNTRIES_ENABLED": true,
-    "_comment_FILTER_BLOCKED_COUNTRIES_ENABLED": "【仅DNS】是否屏蔽特定国家的节点",
+    "_comment_FILTER_BLOCKED_COUNTRIES_ENABLED": "【仅DNS】黑名单开关（true=屏蔽下方 BLOCKED_COUNTRIES 中的国家）",
 
     "BLOCKED_COUNTRIES": [
         "BD", "BI", "BY", "CD", "CF", "CN", "CU", "DE", "ET", "HK",
         "IR", "KP", "LY", "MO", "NG", "NL", "PK", "RU", "SD", "SO",
         "SY", "TH", "TW", "UA", "VE", "VN", "YE", "ZW"
     ],
-    "_comment_BLOCKED_COUNTRIES": "【仅DNS】需要屏蔽的国家代码列表",
+    "_comment_BLOCKED_COUNTRIES": "【仅DNS】黑名单国家代码列表（DNS 更新时剔除这些国家的节点）",
 
     "DNS_UPDATE_TARGET_COUNT": 15,
-    "_comment_DNS_UPDATE_TARGET_COUNT": "DNS 更新时目标 IP 数量（仅当调用时未指定时使用）",
+    "_comment_DNS_UPDATE_TARGET_COUNT": "DNS 更新时写入的最大 IP 数量，独立于筛选模式",
 
     "BANDWIDTH_SIZE_MB": 0.5,
     "_comment_BANDWIDTH_SIZE_MB": "带宽测速下载文件大小（MB）",

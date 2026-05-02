@@ -1,6 +1,6 @@
 #!/bin/bash
 # git_sync.sh
-# 功能：将当前目录下的 ip.txt 文件强制推送到 GitHub 仓库的 main 分支
+# 功能：将当前目录下的 ip.txt 文件强制推送到 GitHub 仓库的指定分支
 # 使用场景：配合 Cloudflare IP 优选工具，自动同步优选结果到远程仓库
 #
 # ⚠️ 安全提醒：使用前请将下方的 github_token 替换为你自己的 GitHub Personal Access Token

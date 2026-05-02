@@ -125,6 +125,10 @@ def load_config():
         "PROGRESS_PRINT_INTERVAL": 1,
         "FILTER_COUNTRIES_ENABLED": False,
         "ALLOWED_COUNTRIES": ["US"],
+        "PRE_FILTER_BLOCKED_ENABLED": True,
+        "PRE_FILTER_BLOCKED_COUNTRIES": ["CN"],
+        "PRE_FILTER_PORT_ENABLED": True,
+        "PRE_FILTER_PORTS": [443],
         "ENABLE_WXPUSHER": True,
         "WXPUSHER_APP_TOKEN": "your_app_token_here",
         "WXPUSHER_UIDS": ["your_uid_here"],
@@ -205,6 +209,10 @@ SOCKET_DEFAULT_TIMEOUT = cfg["SOCKET_DEFAULT_TIMEOUT"]
 PROGRESS_PRINT_INTERVAL = cfg["PROGRESS_PRINT_INTERVAL"]
 FILTER_COUNTRIES_ENABLED = cfg["FILTER_COUNTRIES_ENABLED"]
 ALLOWED_COUNTRIES = cfg["ALLOWED_COUNTRIES"]
+PRE_FILTER_BLOCKED_ENABLED = cfg["PRE_FILTER_BLOCKED_ENABLED"]
+PRE_FILTER_BLOCKED_COUNTRIES = [c.upper() for c in cfg["PRE_FILTER_BLOCKED_COUNTRIES"]]
+PRE_FILTER_PORT_ENABLED = cfg["PRE_FILTER_PORT_ENABLED"]
+PRE_FILTER_PORTS = [str(p) for p in cfg["PRE_FILTER_PORTS"]]
 ENABLE_WXPUSHER = cfg["ENABLE_WXPUSHER"]
 WXPUSHER_APP_TOKEN = cfg["WXPUSHER_APP_TOKEN"]
 WXPUSHER_UIDS = cfg["WXPUSHER_UIDS"]
@@ -299,13 +307,14 @@ def extract_country_code(label):
 
     # 1. 优先找标准两位大写字母代码
     for token in tokens:
-        token = token.strip()
-        if re.match(r'^[A-Z]{2}$', token):
-            return token
+        # 清理 token 开头常见的非字母噪音 (数字、空格、短横、点、下划线、竖线、井号等)
+        token_cleaned = re.sub(r'^[\d\s\-_.|#]+', '', token.strip())
+        if re.match(r'^[A-Z]{2}$', token_cleaned):
+            return token_cleaned
 
     # 2. 对每个 token 尝试提取中文名
     for token in tokens:
-        # --- 新增清理步骤：移除 token 开头常见的非中文噪音 (数字、符号等) ---
+        # --- 移除 token 开头常见的非中文噪音 (数字、符号等) ---
         token_cleaned = re.sub(r'^[\d\s\-_.|#]+', '', token)
         # ----------------------------------------------------------------
         token_no_emoji = re.sub(r'[\U0001F1E6-\U0001F1FF]', '', token_cleaned).strip()
@@ -699,7 +708,7 @@ def batch_update_cloudflare_dns(ip_list, ip_info=None, full_bw_results=None, tar
         if cfg.get("FILTER_IPV6_AVAILABILITY", False):
             filter_parts.append(f"IPv6落地过滤({filtered_by_ipv6}个)")
         if cfg.get("FILTER_BLOCKED_COUNTRIES_ENABLED", False):
-            filter_parts.append(f"屏蔽国家过滤({filtered_by_country}个)")
+            filter_parts.append(f"DNS黑名单过滤({filtered_by_country}个)")
         filter_str = " + ".join(filter_parts) if filter_parts else "无过滤"
         print(f"从 {len(full_bw_results)} 个测速节点中筛选出 {len(dns_ip_list)} 个节点用于 DNS 更新（{filter_str}）。")
 
@@ -888,10 +897,10 @@ def main():
     print(f"最低成功率要求：{MIN_SUCCESS_RATE*100:.0f}%")
     print(f"IP 可用性二次筛选：{'启用' if TEST_AVAILABILITY else '禁用'}（仅对候选节点）")
     print(f"IPv6 客户端 IP 过滤（仅作用于DNS更新环节）：{'启用' if FILTER_IPV6_AVAILABILITY else '禁用'}")
-    print(f"屏蔽国家过滤（仅作用于DNS更新环节）：{'启用' if FILTER_BLOCKED_COUNTRIES_ENABLED else '禁用'}，屏蔽国家：{', '.join(BLOCKED_COUNTRIES)}")
+    print(f"DNS黑名单过滤：{'启用' if FILTER_BLOCKED_COUNTRIES_ENABLED else '禁用'}，黑名单国家：{', '.join(BLOCKED_COUNTRIES)}")
     print(f"带宽测速候选数：{BANDWIDTH_CANDIDATES}，测速文件大小：{BANDWIDTH_SIZE_MB} MB，超时：{BANDWIDTH_TIMEOUT}s")
     if FILTER_COUNTRIES_ENABLED:
-        print(f"国家过滤：启用，允许国家：{', '.join(ALLOWED_COUNTRIES)}")
+        print(f"前置白名单过滤：启用，仅保留：{', '.join(ALLOWED_COUNTRIES)}")
 
     # 统一从 ADDITIONAL_SOURCES 加载所有数据源
     nodes = []
@@ -913,6 +922,28 @@ def main():
                     seen.add(key)
                     nodes.append(n)
     print(f"合并后总计 {len(nodes)} 个节点。")
+
+    # 前置端口过滤（TCP 测试前仅保留指定端口的节点）
+    if PRE_FILTER_PORT_ENABLED:
+        before = len(nodes)
+        nodes = [n for n in nodes if n.split(':')[1].split('#')[0] in PRE_FILTER_PORTS]
+        after = len(nodes)
+        ports_display = ', '.join(PRE_FILTER_PORTS)
+        print(f"前置端口过滤（仅保留端口 {ports_display}）：{before} -> {after} 个节点")
+        if not nodes:
+            print("⚠️ 前置端口过滤后无任何节点，退出程序。")
+            sys.exit(0)
+
+    # 前置黑名单过滤（TCP测试前剔除指定国家）
+    if PRE_FILTER_BLOCKED_ENABLED and PRE_FILTER_BLOCKED_COUNTRIES:
+        before = len(nodes)
+        blocked_set = set(PRE_FILTER_BLOCKED_COUNTRIES)
+        nodes = [n for n in nodes if n.split('#')[-1].upper() not in blocked_set]
+        after = len(nodes)
+        print(f"前置黑名单过滤：{before} -> {after} 个节点（已屏蔽：{', '.join(sorted(blocked_set))}）")
+        if not nodes:
+            print("⚠️ 前置黑名单过滤后无任何节点，退出程序。")
+            sys.exit(0)
 
     if not nodes:
         print("没有获取到任何有效节点，退出。")
@@ -1043,12 +1074,11 @@ def main():
     # IP 列表直接从最终节点提取，避免广告行干扰 DNS 更新
     ip_list = [node.split(':')[0] for node in final_selected]
 
-    target_dns_count = GLOBAL_TOP_N if USE_GLOBAL_MODE else PER_COUNTRY_TOP_N
     batch_update_cloudflare_dns(
         ip_list,
         ip_info=avail_ip_info,
         full_bw_results=bw_results,
-        target_count=target_dns_count,
+        target_count=None,
         latency_map=latency_map
     )
 
