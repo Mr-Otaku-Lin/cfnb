@@ -44,6 +44,7 @@
 | ⚙️ **前置过滤（按序执行）** | TCP 测试前按序：端口过滤 → 黑名单过滤 → 白名单过滤（均可开关） |
 | 🚫 **DNS 黑名单** | DNS 更新时剔除指定国家节点（**仅作用于 DNS 更新环节**） |
 | 🛡️ **IPv6 落地过滤** | 过滤落地仅 IPv6 的节点，保留 IPv4/双栈节点（**仅作用于 DNS 更新环节**） |
+| 🔍 **IP 风险等级过滤** | 仅允许低风险节点，高危自动回退（**仅作用于 DNS 更新环节**） |
 | ☁️ **Cloudflare DNS 更新** | 批量替换同名 A 记录 |
 | 📬 **微信实时通知** | 集成 WxPusher，异常/结果推送 |
 | 🔄 **定时自动运行** | Windows 计划任务 / Linux cron，每 5 分钟 |
@@ -291,13 +292,16 @@ python3 main.py
 | :--- | :--- | :--- | :--- |
 | `FILTER_BLOCKED_COUNTRIES_ENABLED` | `boolean` | `true` | DNS 更新时是否启用黑名单过滤 |
 | `BLOCKED_COUNTRIES` | `array` | `BD, BI, BY, CD, CF, CN, CU, DE, ET, HK,`<br>`IR, KP, LY, MO, NG, NL, PK, RU, SD, SO,`<br>`SY, TH, TW, UA, VE, VN, YE, ZW` | DNS 更新时需要剔除的国家代码列表（共 28 个） |
+| DNS_IP_RISK_FILTER_ENABLED | boolean | false | 是否启用 IP 风险等级过滤 |
+| DNS_IP_RISK_MAX_LEVEL | string | "高风险" | 允许的最高风险等级（可选：极度纯净、纯净、轻微风险、高风险、极度危险） |
 
 > **说明**：  
 > - 该过滤**仅作用于 Cloudflare DNS 批量更新环节**，不会影响 `ip.txt` 的内容和 GitHub 推送。  
 > - DNS 更新时会**同时应用以下条件**，只有全部满足的节点才会写入 DNS：  
 >   - 端口必须为 `443`  
 >   - 落地不能仅为 IPv6（即保留 IPv4 或双栈节点，需开启 `FILTER_IPV6_AVAILABILITY`）  
->   - 国家不在 `BLOCKED_COUNTRIES` 黑名单中（需开启 `FILTER_BLOCKED_COUNTRIES_ENABLED`）
+>   - 国家不在 `BLOCKED_COUNTRIES` 黑名单中（需开启 `FILTER_BLOCKED_COUNTRIES_ENABLED`）  
+>   - IP 风险等级不高于设定阈值（需开启 `DNS_IP_RISK_FILTER_ENABLED`，若过滤后无节点则自动回退到未过滤列表）
 
 ### 微信通知（WxPusher）参数
 
@@ -424,7 +428,7 @@ python3 main.py
 
 **重要说明**：  
 - `ip.txt` 中保存的是**基于带宽测速排序的结果**，以确保 GitHub 推送的节点列表完整且不丢失任何高速 IP。  
-- Cloudflare DNS 批量更新环节会额外应用 `FILTER_IPV6_AVAILABILITY`（过滤落地 IPv6）、`BLOCKED_COUNTRIES`（屏蔽特定国家）两项过滤，仅将符合条件的 IP 写入 DNS 记录。
+- Cloudflare DNS 批量更新环节会额外应用 `FILTER_IPV6_AVAILABILITY`（过滤落地 IPv6）、`BLOCKED_COUNTRIES`（屏蔽特定国家）、`DNS_IP_RISK_FILTER_ENABLED`（IP 风险等级过滤，可设定最高允许等级，过滤后无节点自动回退到无风险过滤列表）等过滤，仅将符合条件的 IP 写入 DNS 记录。
 
 ---
 
@@ -743,12 +747,17 @@ git branch -M $(git remote show origin | grep "HEAD branch" | cut -d " " -f5) 2>
 9. **为什么我的 DNS 记录数量少于 `DNS_UPDATE_TARGET_COUNT`？**  
    如果你启用了 `FILTER_IPV6_AVAILABILITY`，且候选池中符合端口、落地类型、国家过滤等条件的节点总数不足你设定的 DNS 更新目标数量，则 DNS 只会更新实际可用的节点数。这是正常现象，你可以通过增加 `BANDWIDTH_CANDIDATES` 来扩大候选池。
 
+10. **开启了风险等级过滤，但 DNS 更新似乎没有按预期过滤？**  
+    - 检查 `DNS_IP_RISK_FILTER_ENABLED` 是否为 `true`，以及 `DNS_IP_RISK_MAX_LEVEL` 是否设置正确。  
+    - 若 API 请求失败或所有节点均被过滤，程序会**自动回退到无风险过滤的列表**，并发送微信通知。  
+    - 可以查看运行日志中的过滤统计信息确认过滤数量。
+
 </details>
 
 <details>
 <summary>🔍 检测与过滤</summary>
 
-10. **可用性检测全部失败**  
+11. **可用性检测全部失败**  
    若 API 接口异常，程序会自动跳过此步骤并回退到 TCP 筛选结果，同时发送微信提醒（如已配置）。
 
 </details>
@@ -756,7 +765,7 @@ git branch -M $(git remote show origin | grep "HEAD branch" | cut -d " " -f5) 2>
 <details>
 <summary>🔒 隐私与其他</summary>
 
-11. **隐私保护**  
+12. **隐私保护**  
    自动生成的 `.gitignore` 文件会忽略 `config.json`、`git_sync.ps1` 和 `git_sync.sh`，防止敏感信息被提交到公开仓库。
 
 </details>
