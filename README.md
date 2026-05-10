@@ -293,7 +293,7 @@ python3 main.py
 | `FILTER_BLOCKED_COUNTRIES_ENABLED` | `boolean` | `true` | DNS 更新时是否启用黑名单过滤 |
 | `BLOCKED_COUNTRIES` | `array` | `BD, BI, BY, CD, CF, CN, CU, DE, ET, HK,`<br>`IR, KP, LY, MO, NG, NL, PK, RU, SD, SO,`<br>`SY, TH, TW, UA, VE, VN, YE, ZW` | DNS 更新时需要剔除的国家代码列表（共 28 个） |
 | DNS_IP_RISK_FILTER_ENABLED | `boolean` | `false` | 是否启用 IP 风险等级过滤 |
-| DNS_IP_RISK_MAX_LEVEL |` string` | `高风险` | 允许的最高风险等级（可选：极度纯净、纯净、轻微风险、高风险、极度危险） |
+| DNS_IP_RISK_MAX_LEVEL | `string` | `高风险` | 允许的最高风险等级（可选：极度纯净、纯净、轻微风险、高风险、极度危险） |
 
 > **说明**：  
 > - 该过滤**仅作用于 Cloudflare DNS 批量更新环节**，不会影响 `ip.txt` 的内容和 GitHub 推送。  
